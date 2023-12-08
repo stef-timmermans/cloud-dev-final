@@ -1,3 +1,6 @@
+# Ignore the keyfile
+*-key.json
+
 # Logs
 logs
 *.log
