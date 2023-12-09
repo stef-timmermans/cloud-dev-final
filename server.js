@@ -70,11 +70,6 @@ app.use(auth({
 }));
 */
 
-function fromDatastore(item) {
-    item.id = item[Datastore.KEY].id;
-    return item;
-}
-
 /*
 // Enforce JWT authentication
 const checkJwt = jwt({
@@ -135,6 +130,86 @@ Load
 }
 */
 
+/* ---- Begin Helper Functions ---- */
+
+/**
+ * Function: fromDatastore
+ * Parameters: req, item, type
+ * Returns: item
+ * Description:
+ *   This function takes in a datastore item and returns
+ *   it with the appropriate ID and self link. This is
+ *   used for all datastore items except users, which
+ *   only have an ID.
+ */
+function fromDatastore(req, item, type) {
+    item.id = item[datastore.KEY].id;
+    if (item.id != null) {
+        item.self = getSelfLink(req, type, item.id);
+    }
+    return item;
+}
+
+/**
+ * Function: userFromDatastore
+ * Parameters: req, item, type
+ * Returns: item
+ * Description:
+ *   This function takes in a datastore item and returns
+ *   it with the appropriate ID. This is used for users,
+ *   which only have an ID.
+ */
+function userFromDatastore(item) {
+    item.id = item[datastore.KEY].id;
+    return item;
+}
+
+/**
+ * Function: getSelfLink
+ * Parameters: req, type, id
+ * Returns: String
+ * Description:
+ *   This function takes in a request, a type, and an ID
+ *   and returns the self link for that item. This is
+ *   assembled by obtaining the host from the request
+ *   and appending the relative path to the item (this
+ *   creates the true URL for the item).
+ */
+function getSelfLink(req, type, id) {
+    // Grabs the host and assembles the self link
+    return `https://${req.get('host')}/${type}/${id}`;s
+}
+
+/**
+ * Function: getTotalBoatCount
+ * Parameters: None
+ * Returns: Integer
+ * Description:
+ *   This function returns the total number of boats
+ *   in the datastore. It is used for collection
+ *   responses.
+ */
+function getTotalBoatCount() {
+    const keyQuery = datastore.createQuery(BOAT).select('__key__');
+    return datastore.runQuery(keyQuery).then(results => results[0].length);
+}
+
+/**
+ * Function: getTotalLoadCount
+ * Parameters: None
+ * Returns: Integer
+ * Description:
+ *   This function returns the total number of loads
+ *   in the datastore. It is used for collection
+ *   responses.
+ */
+function getTotalLoadCount() {
+    const keyQuery = datastore.createQuery(LOAD).select('__key__');
+    return datastore.runQuery(keyQuery).then(results => results[0].length);
+}
+
+/* ---- End Helper Functions ---- */
+
 /* ---- Begin User Model Functions ---- */
 
 /**
@@ -168,10 +243,13 @@ function post_user() {
  *   that does not need to be paginated.
  */
 function get_users() {
-    // Make a query to get all users
-    const q = datastore.createQuery(USER);
-    return datastore.runQuery(q).then((entities) => {
-        return entities[0].map(fromDatastore);
+    // Create a query for all users
+    const query = datastore.createQuery(USER);
+
+    // Return all users in the datastore
+    return datastore.runQuery(query)
+    .then((entities) => {
+        return entities[0].map(userFromDatastore);
     });
 }
 
@@ -206,6 +284,66 @@ function post_boat(name, type, length) {
         return key;
     });
 }
+
+/**
+ * Function: get_all_boats
+ * Parameters: Cursor (optional)
+ * Returns: JSON
+ * Description:
+ *   This function returns all boats in the datastore,
+ *   displaying their IDs, names, types, lengths, loads,
+ *   and self links. It should also include a 'count' of
+ *   the total number of boats in the datastore. Finally,
+ *   this request is paginated, so it should include up to
+ *   five boats per page, with a 'next' link if there are
+ *   more boats to display. The first boat is either at the
+ *   first index of the datastore or at the index specified
+ *   by the 'cursor' query parameter.
+ */
+async function get_all_boats(req) {
+    // Limit the query to 5 boats
+    const boatsQuery = datastore.createQuery(BOAT).limit(5);
+
+    // Handling pagination with cursor
+    if (req.query.cursor) {
+        boatsQuery.start(req.query.cursor);
+    }
+
+    // Run query to get boats with pagination
+    // Await the result
+    const boatsResult = await datastore.runQuery(boatsQuery);
+
+    // Boats holds the boats, info holds the pagination info
+    const boats = boatsResult[0];
+    const info = boatsResult[1];
+
+    // Format the boats with ids and self links
+    const formattedBoats = boats.map(boat => fromDatastore(req, boat, 'boats'));
+
+    // Get total count of boats
+    const totalBoatsCount = await getTotalBoatCount();
+
+    // Prepare the response
+    const response = {
+        boats: formattedBoats,
+        count: totalBoatsCount
+    };
+
+    // Add a 'next' link if there are more boats to display
+    if (info.moreResults !== Datastore.NO_MORE_RESULTS) {
+        // HTTP for localhost, HTTPS for App Engine
+        response.next = `http://${req.get('host')}/boats?cursor=${info.endCursor}`;
+    }
+
+    // Return the fully assembled response in format:
+    // { boats: [boat1, boat2, ...], count: 5, next: '???' or not included }
+    return response;
+}
+
+/**
+ * Function: get_boats_by_owner
+ * IMPLEMENTATION TBD
+ */
 
 /* ---- End Boat Model Functions ---- */
 
