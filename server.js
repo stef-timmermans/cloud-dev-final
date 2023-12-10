@@ -843,15 +843,22 @@ function remove_load_from_boat(boat_id, load_id) {
             // If the boat and load exist, remove the load from the boat
             if (boatEntity[0] && loadEntity[0]) {
                 const currentBoat = boatEntity[0];
-                const currentLoad = loadEntity[0];
-                
-                // Remove the load from the boat's list of loads
-                const index = currentBoat.loads.indexOf(currentLoad);
-                currentBoat.loads.splice(index, 1);
-                return datastore.update({ "key": boatKey, "data": currentBoat })
-                .then(() => {
-                    return boatKey;
-                });
+
+                // Find the index of the load based on load_id
+                const index = currentBoat.loads.findIndex(load => load.id === load_id);
+
+                // Check if the load is found in the boat's loads
+                if (index !== -1) {
+                    // Remove the load from the boat's list of loads
+                    currentBoat.loads.splice(index, 1);
+                    return datastore.update({ "key": boatKey, "data": currentBoat })
+                    .then(() => {
+                        return boatKey;
+                    });
+                } else {
+                    // Throw an error if the load is not found in the boat's loads
+                    throw new Error('Load is not assigned to this boat.');
+                }
             }
             // Otherwise, return null
             return null;
