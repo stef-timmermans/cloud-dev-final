@@ -16,12 +16,12 @@
 
 const express = require('express');                         // Express for web framework
 const app = express();                                      // Create an Express app
+const ejs = require('ejs');                                 // EJS for templating
 const { Datastore } = require('@google-cloud/datastore');   // Google Cloud Datastore for noSQL database
 const bodyParser = require('body-parser');                  // Body parser for parsing JSON
 require('dotenv').config();                                 // Dotenv for environment variables
 const jwt = require('express-jwt');                         // JWT for authentication
 const jwksRsa = require('jwks-rsa');                        // JWKS for authentication
-const { Datastore } = require('@google-cloud/datastore');
 
 // Use EJS for templating
 app.set('view engine', 'ejs');                              // Set EJS as templating engine
@@ -1597,6 +1597,11 @@ app.delete('/boats/:boat_id/loads/:load_id', checkJwt, (req, res) => {
 });
 
 /* ---- End Boat/Load Routes ---- */
+
+// Home page route
+app.get('/', (req, res) => {
+    res.render('home');
+});
 
 // Listen to the App Engine-specified port, or 8080 otherwise
 const PORT = process.env.PORT || 8080;
