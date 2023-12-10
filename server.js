@@ -1453,6 +1453,48 @@ app.delete('/loads/:load_id', checkJwt, (req, res) => {
  *   405 - Load is already assigned to a boat.
  *   406 - Client does not accept JSON.
  */
+app.patch('/boats/:boat_id/loads/:load_id', checkJwt, (req, res) => {
+    // Check if the request does not accept JSON
+    if (!req.accepts('application/json')) {
+        return res.status(406).send('Server only accepts application/json data.');
+    }
+    
+    // Get the boat and load from the datastore
+    get_boat(req.params.boat_id)
+    .then((boat) => {
+        get_load(req.params.load_id)
+        .then((load) => {
+            // If the boat and load exist, check the JWT and if the load has a carrier
+            if (boat && load) {
+                // If the sub property of the JWT does not match the owner of the boat, return 403
+                if (req.user.sub !== boat.owner) {
+                    return res.status(403).json({ Error: 'The sub property of the JWT does not match the owner of the boat.' });
+                }
+
+                // If the sub property of the JWT does not match the owner of the load, return 403
+                if (req.user.sub !== load.owner) {
+                    return res.status(403).json({ Error: 'The sub property of the JWT does not match the owner of the load.' });
+                }
+
+                // Check if the load already has a carrier
+                if (load.carrier && load.carrier.id) {
+                    return res.status(405).json({ Error: 'The load is already assigned to a boat.' });
+                }
+
+                // Append the load to the boat
+                append_load_to_boat(req.params.boat_id, req.params.load_id)
+                .then(() => get_boat(req.params.boat_id))
+                .then((updatedBoat) => res.status(200).json(updatedBoat))
+                .catch((err) => res.status(500).json({ Error: 'Internal Server Error' }));
+            } else {
+                // If the boat or load does not exist, return 404
+                return res.status(404).json({ Error: 'No boat or load with this ID exists.' });
+            }
+        })
+        .catch((err) => res.status(500).json({ Error: 'Internal Server Error' }));
+    })
+    .catch((err) => res.status(500).json({ Error: 'Internal Server Error' }));
+});
 
 /**
  * Route: DELETE /boats/:boat_id/loads/:load_id
@@ -1471,6 +1513,53 @@ app.delete('/loads/:load_id', checkJwt, (req, res) => {
  *   405 - Load is not assigned to the boat.
  *   406 - Client does not accept JSON.
  */
+app.delete('/boats/:boat_id/loads/:load_id', checkJwt, (req, res) => {
+    // Check if the request does not accept JSON
+    if (!req.accepts('application/json')) {
+        return res.status(406).send('Server only accepts application/json data.');
+    }
+    
+    // Get the boat and load from the datastore
+    get_boat(req.params.boat_id)
+    .then((boat) => {
+        get_load(req.params.load_id)
+        .then((load) => {
+            // If the boat and load exist, check the JWT and if the load carrier matches the boat
+            if (boat && load) {
+                // If the sub property of the JWT does not match the owner of the boat, return 403
+                if (req.user.sub !== boat.owner) {
+                    return res.status(403).json({ Error: 'The sub property of the JWT does not match the owner of the boat.' });
+                }
+
+                // If the sub property of the JWT does not match the owner of the load, return 403
+                if (req.user.sub !== load.owner) {
+                    return res.status(403).json({ Error: 'The sub property of the JWT does not match the owner of the load.' });
+                }
+
+                // Check if the load has no boat
+                if (!load.carrier.id) {
+                    return res.status(405).json({ Error: 'The load is not assigned to any boat.' });
+                }
+
+                // Check if the load is assigned to a different boat
+                if (load.carrier.id !== boat.id) {
+                    return res.status(405).json({ Error: 'The load is not assigned to this boat.' });
+                }
+
+                // Remove the load from the boat
+                remove_load_from_boat(req.params.boat_id, req.params.load_id)
+                .then(() => get_boat(req.params.boat_id))
+                .then((updatedBoat) => res.status(200).json(updatedBoat))
+                .catch((err) => res.status(500).json({ Error: 'Internal Server Error' }));
+            } else {
+                // If the boat or load does not exist, return 404
+                return res.status(404).json({ Error: 'No boat or load with this ID exists.' });
+            }
+        })
+        .catch((err) => res.status(500).json({ Error: 'Internal Server Error' }));
+    })
+    .catch((err) => res.status(500).json({ Error: 'Internal Server Error' }));
+});
 
 /* ---- End Boat/Load Routes ---- */
 
