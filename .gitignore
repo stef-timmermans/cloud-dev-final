@@ -1,6 +1,9 @@
 # Ignore the keyfile
 *-key.json
 
+# Ignore reference docs that won't be needed at the end
+REQUIREMENTS.md
+
 # Logs
 logs
 *.log
