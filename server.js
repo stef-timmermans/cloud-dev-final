@@ -158,7 +158,7 @@ function userFromDatastore(item) {
  */
 function getSelfLink(req, type, id) {
     // Grabs the host and assembles the self link
-    return `https://${req.get('host')}/${type}/${id}`;s
+    return `https://${req.get('host')}/${type}/${id}`;
 }
 
 /**
@@ -176,6 +176,20 @@ function getTotalBoatCount() {
 }
 
 /**
+ * Function: getTotalBoatCountByOwner
+ * Parameters: owner
+ * Returns: Integer
+ * Description:
+ *   This function returns the total number of boats
+ *   owned by the user with the given owner ID. It is
+ *   used for collection responses.
+ */
+function getTotalBoatCountByOwner(owner) {
+    const keyQuery = datastore.createQuery(BOAT).filter('owner', '=', owner).select('__key__');
+    return datastore.runQuery(keyQuery).then(results => results[0].length);
+}
+
+/**
  * Function: getTotalLoadCount
  * Parameters: None
  * Returns: Integer
@@ -186,6 +200,20 @@ function getTotalBoatCount() {
  */
 function getTotalLoadCount() {
     const keyQuery = datastore.createQuery(LOAD).select('__key__');
+    return datastore.runQuery(keyQuery).then(results => results[0].length);
+}
+
+/**
+ * Function: getTotalLoadCountByOwner
+ * Parameters: owner
+ * Returns: Integer
+ * Description:
+ *   This function returns the total number of loads
+ *   owned by the user with the given owner ID. It is
+ *   used for collection responses.
+ */
+function getTotalLoadCountByOwner(owner) {
+    const keyQuery = datastore.createQuery(LOAD).filter('owner', '=', owner).select('__key__');
     return datastore.runQuery(keyQuery).then(results => results[0].length);
 }
 
@@ -376,8 +404,8 @@ async function get_boats_by_owner(owner, req) {
     // Format the boats with ids and self links
     const formattedBoats = boats.map(boat => fromDatastore(req, boat, 'boats'));
 
-    // Get total count of boats
-    const totalBoatsCount = await getTotalBoatCount();
+    // Get total count of boats owned by the user
+    const totalBoatsCount = await getTotalBoatCountByOwner(owner);
 
     // Prepare the response
     const response = {
@@ -638,8 +666,8 @@ async function get_loads_by_owner(owner, req) {
     // Format the loads with ids and self links
     const formattedLoads = loads.map(load => fromDatastore(req, load, 'loads'));
 
-    // Get total count of loads
-    const totalLoadsCount = await getTotalLoadCount();
+    // Get total count of loads by the user
+    const totalLoadsCount = await getTotalLoadCountByOwner(owner);
 
     // Prepare the response
     const response = {
